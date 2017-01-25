@@ -30,6 +30,8 @@ import org.wso2.carbon.identity.mgt.exception.IdentityStoreException;
 import org.wso2.carbon.identity.recovery.IdentityRecoveryConstants;
 import org.wso2.carbon.identity.recovery.IdentityRecoveryException;
 import org.wso2.carbon.identity.recovery.internal.IdentityRecoveryServiceDataHolder;
+import org.wso2.carbon.identity.recovery.mapping.InternallyMangedConfig;
+import org.wso2.carbon.identity.recovery.mapping.RecoveryFile;
 import org.wso2.carbon.identity.recovery.model.UserClaim;
 import org.wso2.carbon.identity.recovery.util.Utils;
 
@@ -54,40 +56,40 @@ public class NotificationUsernameRecoveryManager {
     }
 
 
-    public String verifyUsername(UserClaim[] claims, Boolean notify) throws
+    public String verifyUsername(ArrayList<UserClaim> claims, Boolean notify) throws
             IdentityRecoveryException {
 
+        // Check whether username recovery enable
+        boolean isRecoveryUsernameEnable = Utils.getRecoveryConfigs().getUsername().isEnable();
 
-//        boolean isRecoveryEnable = Boolean.parseBoolean(
-//                Utils.getRecoveryConfigs(IdentityRecoveryConstants.ConnectorConfig.USERNAME_RECOVERY_ENABLE));
-//        if (!isRecoveryEnable) {
-//            throw Utils.handleClientException(
-//                    IdentityRecoveryConstants.ErrorMessages.ERROR_CODE_USERNAME_RECOVERY_NOT_ENABLE, null);
-//        }
+        if (!isRecoveryUsernameEnable) {
+            throw Utils.handleClientException(
+                    IdentityRecoveryConstants.ErrorMessages.ERROR_CODE_USERNAME_RECOVERY_NOT_ENABLE, null);
+        }
+        boolean isNotificationInternallyManaged;
+        if (notify == null) {
+            isNotificationInternallyManaged = Utils.getRecoveryConfigs().getUsername().getNotification().getInternalyManage().isEnable();
+        } else {
+            isNotificationInternallyManaged = notify.booleanValue();
+        }
 
-//        boolean isNotificationInternallyManaged;
-//        if (notify == null) {
-//            isNotificationInternallyManaged = Boolean.parseBoolean(
-//                    Utils.getRecoveryConfigs(IdentityRecoveryConstants.ConnectorConfig.
-        // NOTIFICATION_INTERNALLY_MANAGE));
-//        } else {
-//            isNotificationInternallyManaged = notify.booleanValue();
-//        }
 
         User user = getUserByClaims(claims);
 
         if (user != null) {
-//            if (isNotificationInternallyManaged) {
-//                triggerNotification(user, IdentityRecoveryConstants.NOTIFICATION_ACCOUNT_ID_RECOVERY);
-//                return null;
-//            } else {
+            if (isNotificationInternallyManaged) {
+                triggerNotification(user);
+            } else {
                 return user.getUniqueUserId();
-//            }
+            }
         }
         throw Utils.handleClientException(IdentityRecoveryConstants.ErrorMessages.ERROR_CODE_NO_VALID_USERNAME, null);
     }
 
-//
+    private void triggerNotification(User user){
+
+        log.debug("The user's name is "+ user.getDomainName().toString());
+    }
 //    private void triggerNotification(User user, String type) throws IdentityRecoveryException {
 //
 //        String eventName = EventConstants.Event.TRIGGER_NOTIFICATION;
@@ -107,10 +109,10 @@ public class NotificationUsernameRecoveryManager {
 //        }
 //    }
 
-    private User getUserByClaims(UserClaim[] claims)
+    private User getUserByClaims(ArrayList<UserClaim> claims)
             throws IdentityRecoveryException {
 
-        if (claims == null || claims.length < 1) {
+        if (claims == null || claims.size() < 1) {
             throw Utils.handleClientException(
                     IdentityRecoveryConstants.ErrorMessages.ERROR_CODE_NO_FIELD_FOUND_FOR_USER_RECOVERY, null);
         }
@@ -120,9 +122,9 @@ public class NotificationUsernameRecoveryManager {
 
         // Need to populate the claim email as the first element in the
         // passed array.
-        for (int i = 0; i < claims.length; i++) {
+        for (int i = 0; i < claims.size(); i++) {
 
-            UserClaim claim = claims[i];
+            UserClaim claim = claims.get(i);
             if (claim.getClaimURI() != null && claim.getClaimValue() != null) {
 
                 if (log.isDebugEnabled()) {
